@@ -32,9 +32,9 @@ const Group = () => {
   });
   const [summaryData, setSummaryData] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
-  const [newMemberEmail, setNewMemberEmail] = useState(""); // for adding new member
+  const [newMemberEmail, setNewMemberEmail] = useState("");
 
-  // ✅ New State for Creating Groups
+  // ✅ For creating new group
   const [newGroup, setNewGroup] = useState({
     groupName: "",
     memberEmails: "",
@@ -44,31 +44,43 @@ const Group = () => {
   const loggedInUserId = getUserIdFromToken();
 
   // -------------------------------
-  // Fetch group summary
+  // ✅ FIXED Fetch group summary
   // -------------------------------
   const fetchSummary = async (groupId) => {
     try {
       const token = localStorage.getItem("token");
       const res = await axios.get(
-        `http://localhost:3000/api/groups/${groupId}/balances`,
+        `http://localhost:3000/api/groups/${groupId}/summary`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
-      const { groupName, balances } = res.data;
+      const { groupName, expenses } = res.data;
 
-      const summary = {
+      // Normalize expenses to ensure owner and sharedWith are always safe
+      const normalizedExpenses = (expenses || []).map((exp) => ({
+        expenseId: exp.expenseId,
+        expenseName: exp.expenseName,
+        category: exp.category,
+        amount: exp.amount,
+        owner: exp.owner
+          ? {
+              _id: exp.owner._id,
+              name: exp.owner.name || "Unknown",
+              email: exp.owner.email || "—",
+            }
+          : { _id: null, name: "Unknown", email: "—" },
+        sharedWith: (exp.sharedWith || []).map((s) => ({
+          _id: s._id || null,
+          name: s.name || "Unknown",
+        })),
+      }));
+
+      setSummaryData({
         groupId,
         groupName,
-        members: balances.map((b) => ({
-          _id: b.id,
-          name: b.name,
-          email: b.email,
-          balance: b.balance,
-          expenses: b.expenses || [],
-        })),
-      };
+        expenses: normalizedExpenses,
+      });
 
-      setSummaryData(summary);
       setShowSummaryModal(true);
     } catch (err) {
       console.error("Error fetching summary:", err);
@@ -227,7 +239,6 @@ const Group = () => {
   // -------------------------------
   // Add Member by Email
   // -------------------------------
-  // Updated handleAddMember to take groupId and email
   const handleAddMember = async (groupId, email) => {
     if (!groupId || !email) {
       setMessage("Please provide member email.");
@@ -330,29 +341,6 @@ const Group = () => {
         </button>
       </form>
 
-      {/* Add Member Form */}
-      {activeGroup && (
-        <form
-          onSubmit={handleAddMember}
-          className="mb-4 flex gap-2 justify-center"
-        >
-          <input
-            type="email"
-            placeholder="Enter member email"
-            value={newMemberEmail}
-            onChange={(e) => setNewMemberEmail(e.target.value)}
-            className="p-2 border rounded flex-1"
-            required
-          />
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-4 rounded hover:bg-blue-700"
-          >
-            Add Member
-          </button>
-        </form>
-      )}
-
       {/* Group List */}
       <GroupList
         groups={groups}
@@ -374,7 +362,7 @@ const Group = () => {
         />
       )}
 
-      {/* Summary Modal */}
+      {/* ✅ Fixed Summary Modal */}
       {showSummaryModal && summaryData && (
         <SummaryModal
           summaryData={summaryData}

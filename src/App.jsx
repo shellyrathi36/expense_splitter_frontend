@@ -50,12 +50,6 @@ export default function App() {
       />
 
       <div className="flex flex-grow">
-        {/* Sidebar only for logged-in users */}
-        {userToken && page !== "welcome" && (
-          <Sidebar groups={groups} setSelectedGroup={setSelectedGroup} />
-        )}
-
-        {/* Main Content */}
         <main className="flex-grow p-4 bg-gray-50 flex justify-center items-start">
           {page === "welcome" && <WelcomeSection />}
           {page === "login" && (
