@@ -33,9 +33,43 @@ const Group = () => {
   const [summaryData, setSummaryData] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
 
+  const [newMemberEmail, setNewMemberEmail] = useState(""); // ✅ For adding member
+
   const userToken = localStorage.getItem("token");
   const loggedInUserId = getUserIdFromToken();
 
+  // Fetch group summary
+  const fetchSummary = async (groupId) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axios.get(
+        `http://localhost:3000/api/groups/${groupId}/balances`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const { groupName, balances } = res.data;
+
+      const summary = {
+        groupId,
+        groupName,
+        members: balances.map((b) => ({
+          _id: b.id,
+          name: b.name,
+          email: b.email,
+          balance: b.balance,
+          expenses: b.expenses || [],
+        })),
+      };
+
+      setSummaryData(summary);
+      setShowSummaryModal(true);
+    } catch (err) {
+      console.error("Error fetching summary:", err);
+      setMessage(err?.response?.data?.message || "Error fetching summary");
+    }
+  };
+
+  // Fetch all groups
   useEffect(() => {
     const fetchGroups = async () => {
       try {
@@ -62,6 +96,7 @@ const Group = () => {
     return m ? m.name || m.email || "Unknown" : "Unknown";
   };
 
+  // Open Expense Modal
   const handleOpenExpense = (group) => {
     const defaultSplit = group.members.map((m) => String(m._id));
     setActiveGroup(group);
@@ -76,6 +111,7 @@ const Group = () => {
     setMessage("");
   };
 
+  // Add Expense
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
     if (!activeGroup) return;
@@ -138,6 +174,7 @@ const Group = () => {
     }
   };
 
+  // Clear Expense
   const handleClearExpense = async (groupId, expenseId) => {
     if (!confirm("Clear this expense? This will mark it settled.")) return;
     try {
@@ -159,39 +196,49 @@ const Group = () => {
             : g
         )
       );
+
       setMessage("Expense cleared successfully");
+      if (showSummaryModal) await fetchSummary(groupId);
+      window.dispatchEvent(new Event("dashboardUpdate")); // update dashboard
     } catch (err) {
       console.error("Error clearing expense:", err);
       setMessage(err?.response?.data?.message || "Error clearing expense");
     }
   };
 
-  const handleSummary = async (groupId) => {
+  // Add member by email
+  // Updated in Group.jsx
+  const handleAddMember = async (groupId, email) => {
+    if (!groupId || !email) {
+      setMessage("Please provide a group and member email.");
+      return;
+    }
+
     try {
-      const res = await axios.get(
-        `http://localhost:3000/api/groups/${groupId}/balances`,
+      const res = await axios.patch(
+        "http://localhost:3000/api/groups/add-member-by-email",
+        { groupId, email },
         { headers: { Authorization: `Bearer ${userToken}` } }
       );
 
-      const { groupName, balances } = res.data;
+      // Update members in state
+      setGroups((prev) =>
+        prev.map((g) =>
+          String(g._id) === String(groupId)
+            ? { ...g, members: res.data.group.members }
+            : g
+        )
+      );
 
-      const summary = {
-        groupId, // <-- important!
-        groupName,
-        members: balances.map((b) => ({
-          _id: b.id,
-          name: b.name,
-          email: b.email,
-          balance: b.balance,
-        })),
-      };
-
-      setSummaryData(summary);
-      setShowSummaryModal(true);
+      setMessage("Member added successfully");
     } catch (err) {
-      console.error("Error fetching summary:", err);
-      setMessage(err?.response?.data?.message || "Error fetching summary");
+      console.error("Error adding member:", err);
+      setMessage(err?.response?.data?.message || "Error adding member");
     }
+  };
+
+  const handleSummary = async (groupId) => {
+    await fetchSummary(groupId);
   };
 
   return (
@@ -199,12 +246,36 @@ const Group = () => {
       <h2 className="text-3xl font-bold mb-6 text-center">Your Groups</h2>
       {message && <p className="mb-4 text-center text-blue-600">{message}</p>}
 
+      {/* Add Member Form */}
+      {activeGroup && (
+        <form
+          onSubmit={handleAddMember}
+          className="mb-4 flex gap-2 justify-center"
+        >
+          <input
+            type="email"
+            placeholder="Enter member email"
+            value={newMemberEmail}
+            onChange={(e) => setNewMemberEmail(e.target.value)}
+            className="p-2 border rounded flex-1"
+            required
+          />
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 rounded hover:bg-blue-700"
+          >
+            Add Member
+          </button>
+        </form>
+      )}
+
       <GroupList
         groups={groups}
         findMemberName={findMemberName}
         handleOpenExpense={handleOpenExpense}
         handleClearExpense={handleClearExpense}
         handleSummary={handleSummary}
+        handleAddMember={handleAddMember}
       />
 
       {activeGroup && (
@@ -221,6 +292,7 @@ const Group = () => {
         <SummaryModal
           summaryData={summaryData}
           setShowSummaryModal={setShowSummaryModal}
+          fetchSummary={fetchSummary}
         />
       )}
     </div>

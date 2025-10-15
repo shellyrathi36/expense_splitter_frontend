@@ -23,7 +23,6 @@ const Dashboard = () => {
 
         const dashboardData = res.data.dashboard || [];
 
-        // Calculate totals
         let totalOwe = 0;
         let totalReceive = 0;
         dashboardData.forEach((grp) => {
@@ -40,6 +39,12 @@ const Dashboard = () => {
     };
 
     fetchDashboard();
+
+    // Listen for updates from Group component
+    const handleUpdate = () => fetchDashboard();
+    window.addEventListener("dashboardUpdate", handleUpdate);
+
+    return () => window.removeEventListener("dashboardUpdate", handleUpdate);
   }, [userToken]);
 
   // Fetch balances for selected group
