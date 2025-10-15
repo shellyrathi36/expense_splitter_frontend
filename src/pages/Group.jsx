@@ -227,9 +227,9 @@ const Group = () => {
   // -------------------------------
   // Add Member by Email
   // -------------------------------
-  const handleAddMember = async (e) => {
-    e.preventDefault();
-    if (!activeGroup || !newMemberEmail) {
+  // Updated handleAddMember to take groupId and email
+  const handleAddMember = async (groupId, email) => {
+    if (!groupId || !email) {
       setMessage("Please provide member email.");
       return;
     }
@@ -237,20 +237,19 @@ const Group = () => {
     try {
       const res = await axios.patch(
         "http://localhost:3000/api/groups/add-member-by-email",
-        { groupId: activeGroup._id, email: newMemberEmail },
+        { groupId, email },
         { headers: { Authorization: `Bearer ${userToken}` } }
       );
 
       setGroups((prev) =>
         prev.map((g) =>
-          String(g._id) === String(activeGroup._id)
+          String(g._id) === String(groupId)
             ? { ...g, members: res.data.group.members }
             : g
         )
       );
 
       setMessage("Member added successfully");
-      setNewMemberEmail("");
     } catch (err) {
       console.error("Error adding member:", err);
       setMessage(err?.response?.data?.message || "Error adding member");
