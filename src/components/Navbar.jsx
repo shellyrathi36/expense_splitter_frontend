@@ -25,12 +25,12 @@ const Navbar = ({ userToken, handleLogout, setPage }) => {
             >
               Group
             </button>
-            <button
+            {/* <button
               onClick={() => setPage("expense")}
               className="hover:text-blue-500"
             >
               Expense
-            </button>
+            </button> */}
             <button
               onClick={() => setPage("faq")}
               className="hover:text-blue-500"

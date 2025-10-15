@@ -32,13 +32,20 @@ const Group = () => {
   });
   const [summaryData, setSummaryData] = useState(null);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
+  const [newMemberEmail, setNewMemberEmail] = useState(""); // for adding new member
 
-  const [newMemberEmail, setNewMemberEmail] = useState(""); // ✅ For adding member
+  // ✅ New State for Creating Groups
+  const [newGroup, setNewGroup] = useState({
+    groupName: "",
+    memberEmails: "",
+  });
 
   const userToken = localStorage.getItem("token");
   const loggedInUserId = getUserIdFromToken();
 
+  // -------------------------------
   // Fetch group summary
+  // -------------------------------
   const fetchSummary = async (groupId) => {
     try {
       const token = localStorage.getItem("token");
@@ -69,7 +76,9 @@ const Group = () => {
     }
   };
 
+  // -------------------------------
   // Fetch all groups
+  // -------------------------------
   useEffect(() => {
     const fetchGroups = async () => {
       try {
@@ -90,13 +99,18 @@ const Group = () => {
     fetchGroups();
   }, [userToken]);
 
+  // -------------------------------
+  // Find Member Name
+  // -------------------------------
   const findMemberName = (group, memberId) => {
     if (!group?.members) return "Unknown";
     const m = group.members.find((x) => String(x._id) === String(memberId));
     return m ? m.name || m.email || "Unknown" : "Unknown";
   };
 
+  // -------------------------------
   // Open Expense Modal
+  // -------------------------------
   const handleOpenExpense = (group) => {
     const defaultSplit = group.members.map((m) => String(m._id));
     setActiveGroup(group);
@@ -111,7 +125,9 @@ const Group = () => {
     setMessage("");
   };
 
+  // -------------------------------
   // Add Expense
+  // -------------------------------
   const handleExpenseSubmit = async (e) => {
     e.preventDefault();
     if (!activeGroup) return;
@@ -174,7 +190,9 @@ const Group = () => {
     }
   };
 
+  // -------------------------------
   // Clear Expense
+  // -------------------------------
   const handleClearExpense = async (groupId, expenseId) => {
     if (!confirm("Clear this expense? This will mark it settled.")) return;
     try {
@@ -206,34 +224,65 @@ const Group = () => {
     }
   };
 
-  // Add member by email
-  // Updated in Group.jsx
-  const handleAddMember = async (groupId, email) => {
-    if (!groupId || !email) {
-      setMessage("Please provide a group and member email.");
+  // -------------------------------
+  // Add Member by Email
+  // -------------------------------
+  const handleAddMember = async (e) => {
+    e.preventDefault();
+    if (!activeGroup || !newMemberEmail) {
+      setMessage("Please provide member email.");
       return;
     }
 
     try {
       const res = await axios.patch(
         "http://localhost:3000/api/groups/add-member-by-email",
-        { groupId, email },
+        { groupId: activeGroup._id, email: newMemberEmail },
         { headers: { Authorization: `Bearer ${userToken}` } }
       );
 
-      // Update members in state
       setGroups((prev) =>
         prev.map((g) =>
-          String(g._id) === String(groupId)
+          String(g._id) === String(activeGroup._id)
             ? { ...g, members: res.data.group.members }
             : g
         )
       );
 
       setMessage("Member added successfully");
+      setNewMemberEmail("");
     } catch (err) {
       console.error("Error adding member:", err);
       setMessage(err?.response?.data?.message || "Error adding member");
+    }
+  };
+
+  // -------------------------------
+  // Create New Group
+  // -------------------------------
+  const handleCreateGroup = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        groupName: newGroup.groupName,
+        emails: newGroup.memberEmails
+          .split(",")
+          .map((email) => email.trim())
+          .filter(Boolean),
+      };
+
+      const res = await axios.post(
+        "http://localhost:3000/api/groups/create",
+        payload,
+        { headers: { Authorization: `Bearer ${userToken}` } }
+      );
+
+      setGroups((prev) => [...prev, res.data.group]);
+      setMessage("Group created successfully!");
+      setNewGroup({ groupName: "", memberEmails: "" });
+    } catch (err) {
+      console.error("Error creating group:", err);
+      setMessage(err?.response?.data?.message || "Error creating group");
     }
   };
 
@@ -241,10 +290,46 @@ const Group = () => {
     await fetchSummary(groupId);
   };
 
+  // -------------------------------
+  // UI Rendering
+  // -------------------------------
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <h2 className="text-3xl font-bold mb-6 text-center">Your Groups</h2>
       {message && <p className="mb-4 text-center text-blue-600">{message}</p>}
+
+      {/* ✅ Create Group Form */}
+      <form
+        onSubmit={handleCreateGroup}
+        className="p-4 bg-white rounded shadow mb-6 flex flex-col md:flex-row gap-2 items-center"
+      >
+        <input
+          type="text"
+          placeholder="Group Name"
+          value={newGroup.groupName}
+          onChange={(e) =>
+            setNewGroup({ ...newGroup, groupName: e.target.value })
+          }
+          className="p-2 border rounded flex-1"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Member Emails (comma separated)"
+          value={newGroup.memberEmails}
+          onChange={(e) =>
+            setNewGroup({ ...newGroup, memberEmails: e.target.value })
+          }
+          className="p-2 border rounded flex-1"
+          required
+        />
+        <button
+          type="submit"
+          className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+        >
+          Create Group
+        </button>
+      </form>
 
       {/* Add Member Form */}
       {activeGroup && (
@@ -269,6 +354,7 @@ const Group = () => {
         </form>
       )}
 
+      {/* Group List */}
       <GroupList
         groups={groups}
         findMemberName={findMemberName}
@@ -278,6 +364,7 @@ const Group = () => {
         handleAddMember={handleAddMember}
       />
 
+      {/* Expense Modal */}
       {activeGroup && (
         <ExpenseModal
           activeGroup={activeGroup}
@@ -288,6 +375,7 @@ const Group = () => {
         />
       )}
 
+      {/* Summary Modal */}
       {showSummaryModal && summaryData && (
         <SummaryModal
           summaryData={summaryData}

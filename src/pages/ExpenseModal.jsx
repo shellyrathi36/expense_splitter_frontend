@@ -6,105 +6,145 @@ const ExpenseModal = ({
   setExpenseForm,
   handleExpenseSubmit,
   setActiveGroup,
-}) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
-    <form
-      onSubmit={handleExpenseSubmit}
-      className="bg-white rounded-lg w-full max-w-md p-6 shadow-lg"
-    >
-      <h3 className="text-lg font-semibold mb-4">
-        Add Expense — {activeGroup.name}
-      </h3>
+}) => {
+  if (!activeGroup) return null;
 
-      <input
-        className="w-full p-2 border rounded mb-2"
-        placeholder="Expense name"
-        value={expenseForm.expenseName}
-        onChange={(e) =>
-          setExpenseForm({ ...expenseForm, expenseName: e.target.value })
-        }
-        required
-      />
+  const handleSplitChange = (memberId) => {
+    setExpenseForm((prev) => {
+      const exists = prev.splitBetween.includes(memberId);
+      return {
+        ...prev,
+        splitBetween: exists
+          ? prev.splitBetween.filter((id) => id !== memberId)
+          : [...prev.splitBetween, memberId],
+      };
+    });
+  };
 
-      <input
-        className="w-full p-2 border rounded mb-2"
-        placeholder="Amount"
-        type="number"
-        step="0.01"
-        value={expenseForm.amount}
-        onChange={(e) =>
-          setExpenseForm({ ...expenseForm, amount: e.target.value })
-        }
-        required
-      />
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-lg shadow-lg relative">
+        <h2 className="text-2xl font-bold mb-4 text-center">
+          Add Expense – {activeGroup.groupName}
+        </h2>
 
-      <input
-        className="w-full p-2 border rounded mb-2"
-        placeholder="Category"
-        value={expenseForm.category}
-        onChange={(e) =>
-          setExpenseForm({ ...expenseForm, category: e.target.value })
-        }
-        required
-      />
+        <form onSubmit={handleExpenseSubmit} className="space-y-4">
+          {/* Expense Name */}
+          <div>
+            <label className="block font-semibold mb-1">Expense Name</label>
+            <input
+              type="text"
+              value={expenseForm.expenseName}
+              onChange={(e) =>
+                setExpenseForm({ ...expenseForm, expenseName: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
 
-      <label className="block text-sm font-medium mb-1">Paid by</label>
-      <select
-        className="w-full p-2 border rounded mb-3"
-        value={expenseForm.paidBy}
-        onChange={(e) =>
-          setExpenseForm({ ...expenseForm, paidBy: e.target.value })
-        }
-        required
-      >
-        <option value="">-- Select payer --</option>
-        {activeGroup.members.map((m) => (
-          <option key={m._id} value={String(m._id)}>
-            {m.name}
-          </option>
-        ))}
-      </select>
+          {/* Description */}
+          <div>
+            <label className="block font-semibold mb-1">Description</label>
+            <input
+              type="text"
+              value={expenseForm.description}
+              onChange={(e) =>
+                setExpenseForm({ ...expenseForm, description: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+            />
+          </div>
 
-      <div className="mb-3">
-        <div className="text-sm font-medium mb-1">Split between</div>
-        <div className="grid grid-cols-2 gap-1 max-h-28 overflow-y-auto">
-          {activeGroup.members.map((m) => (
-            <label key={m._id} className="text-sm flex items-center">
-              <input
-                type="checkbox"
-                className="mr-2"
-                checked={expenseForm.splitBetween.includes(String(m._id))}
-                onChange={() => {
-                  const idStr = String(m._id);
-                  const updated = expenseForm.splitBetween.includes(idStr)
-                    ? expenseForm.splitBetween.filter((id) => id !== idStr)
-                    : [...expenseForm.splitBetween, idStr];
-                  setExpenseForm({ ...expenseForm, splitBetween: updated });
-                }}
-              />
-              {m.name}
-            </label>
-          ))}
-        </div>
+          {/* Amount */}
+          <div>
+            <label className="block font-semibold mb-1">Amount</label>
+            <input
+              type="number"
+              min="0"
+              value={expenseForm.amount}
+              onChange={(e) =>
+                setExpenseForm({ ...expenseForm, amount: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+
+          {/* Category */}
+          <div>
+            <label className="block font-semibold mb-1">Category</label>
+            <input
+              type="text"
+              value={expenseForm.category}
+              onChange={(e) =>
+                setExpenseForm({ ...expenseForm, category: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+              required
+            />
+          </div>
+
+          {/* Paid By Dropdown */}
+          <div>
+            <label className="block font-semibold mb-1">Paid By</label>
+            <select
+              value={expenseForm.paidBy}
+              onChange={(e) =>
+                setExpenseForm({ ...expenseForm, paidBy: e.target.value })
+              }
+              className="w-full p-2 border rounded"
+              required
+            >
+              <option value="">Select Member</option>
+              {activeGroup.members?.map((member) => (
+                <option key={member._id} value={member._id}>
+                  {member.name || member.email}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Split Between */}
+          <div>
+            <label className="block font-semibold mb-1">Split Between</label>
+            <div className="flex flex-wrap gap-3">
+              {activeGroup.members?.map((member) => (
+                <label
+                  key={member._id}
+                  className="flex items-center space-x-2 border p-2 rounded cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={expenseForm.splitBetween.includes(member._id)}
+                    onChange={() => handleSplitChange(member._id)}
+                  />
+                  <span>{member.name || member.email}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-between pt-4">
+            <button
+              type="button"
+              onClick={() => setActiveGroup(null)}
+              className="px-4 py-2 bg-gray-400 text-white rounded hover:bg-gray-500"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Add Expense
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div className="flex justify-end gap-2">
-        <button
-          type="button"
-          className="px-3 py-1 rounded bg-gray-300 hover:bg-gray-400"
-          onClick={() => setActiveGroup(null)}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-4 py-1 rounded bg-green-600 text-white hover:bg-green-700"
-        >
-          Add Expense
-        </button>
-      </div>
-    </form>
-  </div>
-);
+    </div>
+  );
+};
 
 export default ExpenseModal;
